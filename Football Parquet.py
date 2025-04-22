@@ -15,12 +15,35 @@ from matplotlib.backends.backend_pdf import PdfPages
 import requests
 
 # --- Load Data ---
+@st.cache_data
 def load_data():
+    st.write("🔄 Starting download...")
     url = "https://drive.google.com/uc?export=download&id=1IBvy-k0yCDKMynfRTQzXJAoWJpRhFPKk"
-    response = requests.get(url)
-    response.raise_for_status()
-    df = pd.read_parquet(BytesIO(response.content))
-    df['EVENT_START_TIMESTAMP'] = pd.to_datetime(df['EVENT_START_TIMESTAMP'], errors='coerce', dayfirst=True)
+
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        st.write("✅ Download complete")
+    except Exception as e:
+        st.error(f"❌ Failed to download file: {e}")
+        return pd.DataFrame()
+
+    try:
+        st.write("📦 Reading Parquet file...")
+        df = pd.read_parquet(BytesIO(response.content))
+        st.write("✅ Parquet loaded")
+    except Exception as e:
+        st.error(f"❌ Failed to read Parquet: {e}")
+        return pd.DataFrame()
+
+    try:
+        st.write("🗓️ Parsing datetime...")
+        df['EVENT_START_TIMESTAMP'] = pd.to_datetime(df['EVENT_START_TIMESTAMP'], errors='coerce', format='%Y-%m-%d %H:%M:%S.%f')
+    except Exception as e:
+        st.error(f"❌ Failed to parse datetime: {e}")
+        return pd.DataFrame()
+
+    st.write(f"✅ Data ready! {len(df):,} rows loaded")
     return df.dropna(subset=['EVENT_START_TIMESTAMP'])
 
 df = load_data()
